@@ -33,7 +33,7 @@ function splitTrainTest(t::Tabla,limSuperior::Float64)
 	t.textos -= t.textos*(1-limSuperior)
 end
 #
-function Add_word(table::tabla,word::String)
+function Add_word(table::tabla,word::AbstractString)
 	if !haskey(table.t,word)
 		table.numeroPalabras += 1
 		table.t[word] = table.numeroPalabras
@@ -98,7 +98,7 @@ function add(bag1::bagOfWords,bag2::bagOfWords)
 	return erg
 end
 ### Añadir palabra a la bag of words
-function add_word(bag::bagOfWords,word::String)
+function add_word(bag::bagOfWords,word::AbstractString)
 	bag.NumeroPalabras +=1
 	if haskey(bag.Bag_of_words,word)
 		bag.Bag_of_words[word] += 1
@@ -118,7 +118,7 @@ function bolsa(bag::bagOfWords)
 end
 
 #Obtener la frecuencia de la palabra (cuantas veces existe)
-function frecuenciaPalabra(bag::bagOfWords,word::String)
+function frecuenciaPalabra(bag::bagOfWords,word::AbstractString)
 	if haskey(bag.Bag_of_words,word)
 		return bag.Bag_of_words[word]
 	else
@@ -133,8 +133,8 @@ end
 abstract Doc
 
 type Document <: Doc
-	nombre::String
-	clase::String
+	nombre::AbstractString
+	clase::AbstractString
 	palabras_y_freq::BagOfWords
 	vocabulario::BagOfWords
 end
@@ -169,7 +169,7 @@ function and(doc1::Document, doc2::Document)
 	return interseccion	
 end
 #Leer un documento y añadir las palabras al vocabulario del documento y al vocabulario global (p.vocabulario)
-function leer_document(doc::Document,texto::String, aprender::Bool)
+function leer_document(doc::Document,texto::AbstractString, aprender::Bool)
 	##Preprocesar los textos
 	words = estandarizar(texto)
 	#words = removerNumeros(words)
@@ -198,7 +198,7 @@ function palabras(doc::Document)
 	return keys(bag)
 end
 #Obtener la frecuencia para una palabra del documento
-function frecuenciaPalabra(doc::Document,word::String)
+function frecuenciaPalabra(doc::Document,word::AbstractString)
 	bag = bolsa(doc.palabras_y_freq)
 	if haskey(bag,word)
 		return bag[word]
@@ -230,7 +230,7 @@ function DocumentClass(doc::Document)
 end
 
 #probabilidad de documentClass obtiene la probabilidad de que ina palabra pertenesca a dicha clase
-function probabilidad(dc::DocumentClass,word::String)
+function probabilidad(dc::DocumentClass,word::AbstractString)
 	voc_len = tamano_vocabulario(dc.documento)
 	SumN = frecuenciaPalabra(dc.documento.vocabulario,word)
 	N = frecuenciaPalabra(dc.documento,word)
@@ -251,7 +251,7 @@ function palabrasYFreq(dc1::DocumentClass)
 end
 ##
 ##Obtener la frecuencia de una palabra en la documentClass
-function frecuenciaPalabra(doc::DocumentClass,word::String)
+function frecuenciaPalabra(doc::DocumentClass,word::AbstractString)
 	return frecuenciaPalabra(doc.documento,word)
 end
 
@@ -278,7 +278,7 @@ end
 ###
 # Suma todas las cantidades de palabras que existen para una clase.
 ###
-function sum_words_in_class(p::Pool,dclass::String)
+function sum_words_in_class(p::Pool,dclass::AbstractString)
 	sum = 0
 	for word in palabras(p.vocabulario)
 		WaF = palabrasYFreq(p.clases[dclass])
@@ -298,7 +298,7 @@ end
 # esto funciona principalmente por que en julia se pasan referencias a los objetos, por lo que algun cambio
 # añadiendo algo a la categoria 1, tambien afecta al p.vocabulario de la categoria 2.
 ###
-function learn(p::Pool,directory::String,dclass_name::String)
+function learn(p::Pool,directory::AbstractString,dclass_name::AbstractString)
 	x = DocumentClass(Document(p.vocabulario))
 	dir = readdir(directory)
 	for file in dir
@@ -320,7 +320,7 @@ end
 # leer_document se encarga de obtener las palabras y la frecuencia para cada documento
 # luego en la funcion add, se añaden las palabras anteriores para dicha clase con las palabras nuevas (x)
 ###
-function learnFile(p::Pool,file::String,dclass_name::String)
+function learnFile(p::Pool,file::AbstractString,dclass_name::AbstractString)
 	x = DocumentClass(Document(p.vocabulario))
 	f = open(file)
 	d = Document(p.vocabulario)
@@ -343,7 +343,7 @@ end
 # Esta funcion de probabilidad con los argumentos de pool y string (Archivo), itera para todas las clases y pregunta a la funcion de probabilidad
 # con 3 argumentos
 ###
-function probabilidad(p::Pool,doc1::String)
+function probabilidad(p::Pool,doc1::AbstractString)
 	prob_list = Tuple[]
 	for dclass in keys(p.clases)
 		#println(dclass)
@@ -360,7 +360,7 @@ end
 # Este implementa la funcion de probabilidad del bayes multinomial (https://en.wikipedia.org/wiki/Naive_Bayes_classifier#Multinomial_naive_Bayes)
 # Con eso se evita si una probabilidad es muy cercana a 0, debido a que lleva las probabilidades a un espacio logaritmico 
 ###
-function probabilidad(p::Pool,doc1::String,dclass::String)
+function probabilidad(p::Pool,doc1::AbstractString,dclass::AbstractString)
 	#Se obtienen la cantidad total de palabras para dicha clase
 	sum_j = sum_words_in_class(p,dclass)
 	prob = 0	
@@ -399,7 +399,7 @@ end
 # Estas funciones de probabilidad, incorporan el argumento debug el cual es una flag para 
 # imprimir por pantalla todos los resultados y operaciones para cada iteracion.
 ###
-function probabilidad(p::Pool,doc1::String,debug::Bool)
+function probabilidad(p::Pool,doc1::AbstractString,debug::Bool)
 	prob_list = Tuple[]
 	for dclass in keys(p.clases)
 		println(dclass)
@@ -410,7 +410,7 @@ function probabilidad(p::Pool,doc1::String,debug::Bool)
 	return prob_list[1]
 end
 
-function probabilidad(p::Pool,doc1::String,dclass::String,debug::Bool)
+function probabilidad(p::Pool,doc1::AbstractString,dclass::AbstractString,debug::Bool)
 	sum_dclass = sum_words_in_class(p,dclass)
 	prob = 0	
 	totaldocs = 0

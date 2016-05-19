@@ -1,4 +1,9 @@
-#function classifier(dirr::String,flagR::Bool,flagRe::Bool,threshold::Int,b_threshold::Int,fl::String,cfg::String)
+###
+# Main.jl corresponde al 
+###
+
+
+#function classifier(dirr::AbstractString,flagR::Bool,flagRe::Bool,threshold::Int,b_threshold::Int,fl::AbstractString,cfg::AbstractString)
 	include("Estructuras.jl")
 	include("util.jl")
 	include("Tokenizer.jl")
@@ -7,23 +12,30 @@
 
 	#conn = connect(dirr,2001)
 	#handshake = false
-	Dir = "../textos3/"
-	DirCritic = "../docs/twitsTest/"
-	DirTest = "../docs/twitsTest"
+	Dir = "./textos3/"
+	DirCritic = "./docs/twitsTest/"
+	DirTest = "./docs/twitsTest"
 	flagRand = true
 	flagRetrain = true
-	DClasses = readdir("../docs/twits")
+	DClasses = readdir("./docs/twits/")
+	
+	###
+	#Funcion para inicializar la conexion al agente clasificador
+	###
 	function init(po,con,hand,dir,dir2,dir3,flagR,flagRe,dcc)	
 		po = Pool()
 		con = connect(dirr,2001)
 	#	hand = false
-		dir = "../docs/twitsLearn/"
-		dir2 = "../docs/twitsTest/"
-		dir3 = "../docs/twitsTest2"
+		dir = "/docs/twitsLearn/"
+		dir2 = "/docs/twitsTest/"
+		dir3 = "/docs/twitsTest2"
 		flagR = false
 		flagRe = false
 		dcc = readdir(Dir)
 	end
+	###
+	#Funcion para resetear los clasificadores (ya sea un solo clasificador, o arreglos de estos)
+	###
 	function resetPools(p1,p2)
 		p1 = Pool()
 		p2 = Pool[]
@@ -32,12 +44,20 @@
 		p  = Pool()
 		pools = Pool[]
 	end
-	function query(conn,q::String,args::String)
+	
+	###
+	#Funcion para realizar la comunicacion entre un cliente y un servidor
+	###
+	function query(conn,q::AbstractString,args::AbstractString)
 		println(conn,"Query")
 		println(conn,q)
 		println(conn,args)
 	end
-
+	###
+	#Funcion para establecer una conexion
+	#Genera un handshake  y una respuesta, donde luego un safe_reset.
+	#con el fin de inicializar todas las variables en el servidor correctamente.
+	###
 	function hs(conn)
 		println(conn,"Handshake")
 		resp = parser!(readline(conn))
@@ -58,23 +78,34 @@
 		#query(conn,"change_batch_threshold",string(b_threshold))
 		#println(readline(conn))
 	end
-	function parser!(s::String)
+	###
+	# Funcion de parseo de textos (elimina los saltos de linea)
+	###
+	function parser!(s::AbstractString)
 		texto = replace(s,"\n","")
 		return texto
 
 	end
 	
-	function train()
-		for class in DClasses
-			learn(p,Dir*class,class)
-		end
-	end
-	#### OCUPAR ESTE
+	###
+	# FUNCIONES DE TRAINING
+	####
+	### 
+	#Este train entrena todos los archivos que esten en el elemento files de una tabla (t.files)
+	###
 	function train(t::Tabla)
 		for file in t.files
 			learnFile(p,file,t.indiceT[file])	
 		end
 	end
+	###
+	#Este train, entrena todos los archivos que estenen en el elemento files,
+	#solo que tambien considera cuando implica un entrenamiento con limite
+	#esto significa que  hay un limite de textos para el entrenamiento (por ejemplo se entrena el clasificador solo con 
+	# los primeros 1000 twits mas recientes)
+	# Para esto en el caso de re-entrenar un clasificador que contenga mas de 1000 textos, se desecha el clasificador antiguo
+	# y se entrena uno nuevo con los nuevos N textos a entrenar.
+	###
 	function trainLim(t::Tabla)
 		println("Retraining con limite")
 		p = Pool()
@@ -82,16 +113,22 @@
 			learnFile(p,file,t.indiceT[file])	
 		end
 	end
-	
+	###
+	# Este train, entrena el conjunto de clasificadores, donde en cada iteracion de re-entrenamiento
+	# genera un clasificador nuevo, se entrena con los nuevos documentos que van llegando y luego
+	# se pone en una lista de clasificadores
+	###
 	function trainPools(t::Tabla)
 		p1 = Pool()
 		for file in t.files
 			learnFile(p1,file,t.indiceT[file])	
 		end
 		push!(pools,p1)
-	end
-	#### HASTA ACA
-	
+	end	
+	###
+	#Este clasificador entrena un porcentaje de los archivos en t.Files (definido por el limSuperior)
+	#ejemplo: entrenar el 70% de los archivos seria limSuperior= 0.7
+	###
 	function train(t::Tabla,limSuperior::Float64)
 		n = floor(length(t.files)*limSuperior)
 		println(n)
@@ -101,71 +138,14 @@
 		end
 	end
 
-	function reTrain(p::Pool,raw_docs::String)
-		println("======== RE TRAINING =====")
-		## Elimino el formato
-		docs = replace(raw_docs,"String","")
-		docs = replace(docs,"[","")
-		docs = replace(docs,"]","")
-		docs = replace(docs,"\"","") #"
-		tuplas = split(docs,",")
-		println(raw_docs)
-		for tupla in tuplas
-			doc_cat = split(tupla,";")
-			learnFile(p,doc_cat[1],doc_cat[2])
-		end
-
-	end
-
-	function reTrain(p::Pool,raw_docs::String,class::String)
-		println("======== RE TRAINING =====")
-		## Elimino el formato
-		docs = replace(raw_docs,"String","")
-		docs = replace(docs,"[","")
-		docs = replace(docs,"]","")
-		docs = replace(docs,"\"","") #"
-		tuplas = split(docs,",")
-		println(docs)
-		for tupla in tuplas
-			doc_cat = split(tupla,";")
-			learnFile(p,docs,class)
-		end
-
-	end
-
-	function test()	
-		resultsText = String[]
-		resultsAcc = Tuple[]
-		class = ""
-		j = 0
-		for class in DClasses
-			files = readdir(DirTest*"/"*class)
-			if flagRand
-				shuffle!(files)
-			end
-			for file in files
-				res = probabilidad(p,DirTest*"/"*class*"/"*file)
-				
-				#hola = res[2]
-				#if hola <= -40
-			#		println("re-entrenando el documento en: "*res[1])
-			#		reTrain(p,DirTest*"/"*file,res[1])
-		#		end
-				push!(resultsText,DirTest*"/"*file*":  "*string(res)*"\n")
-				push!(resultsAcc,tuple(class,res[1]))
-				println(DirTest*"/"*file*":  "*string(res))
-			end
-		end
-		file = open("./resultados.txt","w")
-		for i in resultsText
-			write(file,string(i))
-		end
-		close(file)
-		println("resultado de j: "*string(j))
-		return resultsAcc	
-		
-	end
-
+	
+	###
+	# Funcion de test utilizada en el clasificador
+	# para cada elemento de un arreglo arr (t1.Test o t2.Test por ejemplo)  se calcula la 
+	# probabilidad y se retorna la mejor probabilidad ligada a una clase (Clasificacion por bayes)
+	# luego se obtiene la verdadera clase para dicho documento (clase = t.indiceT[el]), para
+	#luego guardarlo en un arreglo de resultados para su posterior analisis de exactitud y puntaje f1
+	###
 	function test(t::Tabla,arr::Array)
 		resultsAcc = Tuple[]
 		for el in arr
@@ -176,6 +156,10 @@
 		end
 		return resultsAcc
 	end
+	
+	##
+	# Funcion para actualizar los pesos del conjunto (array) de clasificadores 
+	##
 	function updateWeights(wei::Array, val::Float64)
 		valor = val/(1-val)
 		#println(valor)
@@ -187,6 +171,12 @@
 		return arr
 		
 	end
+	
+	###
+	# Funcion de realizar la clasificacion con el set de pruebas utilizando el conjunto
+	# de clasificadores. Esta opcion solo funcionaria con los twits debido a las categorias
+	# que solo acepta para poder calcular los votos (Positivo, neutral y negativo).
+	###
 	function testPools(t::Tabla,arr::Array,wei::Array)
 		resultsAcc = Tuple[]
 		
@@ -242,14 +232,20 @@
 		return resultsAcc
 	end
 	
-	function create_file(results,tCritValues,fl::String,cfg::String,t::Tabla)
+	###
+	#Esta funcion crea el archivo de output, generando las medidas de evaluación , 
+	#tanto la matriz de confusion, la exactitud y el puntaje f1
+	#Tiene 2 medidas de evaluacion, que so ntanto para el dataset de los twits, 
+	#como el dataset de reuters 21578 (http://www.daviddlewis.com/resources/testcollections/reuters21578/)
+	###
+	function create_file(results,tCritValues,fl::AbstractString,cfg::AbstractString,t::Tabla)
 		i = 0
 		j = 0
 		#=
-		acq =[0,0,0,0]
-		earn =[0,0,0,0]
-		trade =[0,0,0,0]
-		unkn =[0,0,0,0]
+		acq =	[0,0,0,0]
+		earn =	[0,0,0,0]
+		trade =	[0,0,0,0]
+		unkn =	[0,0,0,0]
 		
 		for res in results
 			if lowercase(res[2]) == "acq"

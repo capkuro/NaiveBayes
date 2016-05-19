@@ -1,5 +1,14 @@
-#include("critico.jl")
+### 
+# Funcion de benchmark para poder ver el rendimiento del clasificador y 
+# Re-training con distintas configuraciones de clasificaciones mediante
+# fuerza bruta en las posibles combinaciones de parametros.
+###
 
+# Incluye distribuidor.jl el que basicamente realiza funciones del agente distribuidor de los documentos
+# para el agente critico y el agente clasificador. A su vez, distribuidor.jl incluye:
+# - Estructuras.jl -> Estructuras basicas para el funcionamiento del clasificador naive bayes y el critico
+# - Tokenizer.jl -> Netamente el agente critico
+# - Main.jl ->  Netamente el agente clasificador
 include("Distribuidor.jl")
 
 
@@ -26,10 +35,12 @@ for flH in flagHistogram
 					for numr in numRanking
 						for spl in splitVal
 							for crv in critVal
-							direcion = "$flH $flP $flTI $lim $sep $numr $spl $crv"
-							mkdir("./benchmarkResult/"*direcion)
+							#direcion = "$flH $flP $flTI $lim $sep $numr $spl $crv"
+							#mkdir("./benchmarkResult/"*direcion)
 								for i in 1:1
 									bench(flH,flP,flTI,lim,sep,numr,spl,crv,i)
+									#pools y p corresponden a la estructura Pools la cual alberga el clasificador y sus funcionalidades
+									#
 									p = Pool()
 									pools = Pool[]	
 								end
