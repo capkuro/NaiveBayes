@@ -113,7 +113,7 @@ function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::In
 	splitTrainTest(t1,splitVal)
 
 	#Si flagPools es verdadero, se utiliza un conjunto o ensemble de clasificadores
-	#Hasta el dia de hoy  las pools no funcionan
+	#Hasta el dia de hoy las pools como ensemble no funcionan o reportan baja exactitud de clasificacion
 	if flagPools
 		trainPools(t1)
 		res = testPools(t1,t1.Test,weights)

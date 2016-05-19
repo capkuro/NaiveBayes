@@ -27,6 +27,46 @@ function Tabla()
 	table = Tabla(Dict(),Dict(),[0],[0],[0],[0],[0],[0],[0],0,0,0,0,0,0)
 	return table
 end
+###
+# Funcion de inicializar tabla, la cual es la que se utiliza en distribuidor.jl
+# Todos los parametros necesarios son pasados por los argumentos
+# 
+###
+###
+# Inicializar tabla con un directorio, hace referencia a la funcion inicializar tabla con 2 elementos.
+function initT(dir::AbstractString)
+	return initT(dir,0.0)
+end
+# Inicializar tabla con una direccion, el limite de palabras maximo  
+# y si se utilizara tf-idf para hacer la comparacion en reduccion de dimensionalidad
+# esta corresponde a una version anterior de la initT
+###
+
+###
+# Funcion de inicializar tabla, la cual es la que se utiliza en distribuidor.jl
+# Todos los parametros necesarios son pasados por los argumentos
+# 
+###
+function initT(bool::Bool,ta::Tabla,num::Int,limT::Int,Arch::Array)
+	t = Tabla()
+	t.categorias = ta.categorias
+	t.indiceT =  ta.indiceT
+	#Funcion giveElements implementada en distribuidor.jl
+	t.files = giveElements(num,true,Arch)
+	t.limTextos = limT
+	text2vector(t,t.files)
+	return t
+end
+function initT(bool::Bool,ta::Tabla,num::Int,limT::Int)
+	t = Tabla()
+	t.categorias = ta.categorias
+	t.indiceT =  ta.indiceT
+	#Funcion giveElements implementada en distribuidor.jl
+	t.files = giveElements(num,true,Arch)
+	t.limTextos = limT
+	text2vector(t,t.files)
+	return t
+end
 # Hacer split del conjunto de textos
 function splitTrainTest(t::Tabla,limSuperior::Float64)
 	t.Test = splice!(t.files,int((t.textos*limSuperior)+1):t.textos)
@@ -57,7 +97,95 @@ function removeFiles(t1::Tabla)
 	splice!(t1.files,1:n)
 	t1.textos = t1.limTextos
 end
+###
+#tokenizer: crea un diccionario con las frecuencias de cada palabra en un texto
+#Luego de estandarizarlo genera un diccionario con la posicion de cada palabra en un futuro arreglo que se creara
+#llamado por textsInput 
+###
+function tokenizer(Diccionario::Dict,texto::AbstractString)
+	est = estandarizar(texto)
+	splitted = split(est)
+	for word in splitted
+		if !haskey(Diccionario,word)
+			Diccionario[word] = Diccionario.count + 1
+		end		
+	end
+	return Diccionario
+end
 
+###
+#textsInput: Genera un diccionario con la posicion de las palabras para 
+#todos los archivos contenidos en Arr (iterando a traves de todos los archivos)
+#llamado por text2vector
+###
+function textsInput(Arr::Array)
+	Diccionario = Dict()
+	
+	shuffle(Arr)
+	for file in Arr
+		f = open(file)
+		Diccionario = tokenizer(Diccionario,readall(f))
+		#
+		close(f)
+	end
+	return Diccionario
+end
+
+###
+#Genera e inicializa el contenido para las tablas, considerando los archivos de entrada
+# - Genera una bagOfWords para la tabla de todos los documentos (t.Diccionario = textsInput(Arr))
+# - Obtiene la cantidad de textos/twits con los que se va a trabajar, entrenar.
+# - Inicializa vectores con las frequencias, promedios y desviaciones estandard para cada palabra (estas ultimas dos en relacion a la frecuencia) 
+# - Actualiza las frecuencias totales para cada palabra (updateVector!(t.frequencias,t.Diccionario,Arr))
+###
+function text2vector(t::Tabla,Arr::Array)
+		shuffle!(Arr)	
+		t.Diccionario = textsInput(Arr)
+		t.textos = length(Arr)
+		t.frequencias = zeros(Int,t.textos,t.Diccionario.count)
+		t.promedios= zeros(Float64,t.Diccionario.count)
+		t.desv= zeros(Float64,t.Diccionario.count)
+		updateVector!(t.frequencias,t.Diccionario,Arr)
+	
+end
+
+###
+#actualiza un vector el cual contiene todas las palabras para todos los documentos/textos (arreglo Arr)
+#para obtener las frecuencias totales para todas las palabras en todos los documentos.
+###
+function updateVector!(vector::Array,Dicc::Dict,Arr::Array)
+	i=1
+	for file in Arr
+		f = open(file)
+		texto = split(estandarizar(readall(f)))
+		for word in texto
+			if haskey(Dicc,word)
+				indice = Dicc[word]
+				vector[i,indice ] += 1
+			end
+		end
+		i += 1
+		close(f)
+		
+	end
+	##println(reshape(vector,i,Dicc.count))
+end
+
+###
+#funcion que actualiza todos los promedios y desviaciones estandard para cada palabra
+#segun su frecuencia en todo el corpus de textos
+###
+function updateMeanStd(t::Tabla)
+	i = int(1)
+	#while i <= t.textos 
+	for i in 1:t.textos
+		prom = mean(t.frequencias[i,:])
+		dev = std(t.frequencias[i,:])
+		t.promedios[i] = prom		
+		t.desv[i] = dev
+		i += 1
+	end
+end
 
 ######=================================================================================================
 
