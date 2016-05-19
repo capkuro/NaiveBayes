@@ -1,100 +1,71 @@
-### Tokenizer comple las funciones del agente critico
-### utiliza la estructura tabla para poder realizar y almacenar todas las operaciones.
+### 
+# Tokenizer comple las funciones del agente critico
+# utiliza la estructura tabla para poder realizar y almacenar todas las operaciones.
+###
 
-
+###
+#
 include("util.jl")
 include("estructuras.jl")
 
-function initT(dir::String)
-return initT(dir,0.0)
+###
+# Inicializar tabla con un directorio, hace referencia a la funcion inicializar tabla con 2 elementos.
+function initT(dir::AbstractString)
+	return initT(dir,0.0)
 end
+# Inicializar tabla con una direccion, el limite de palabras maximo  
+# y si se utilizara tf-idf para hacer la comparacion en reduccion de dimensionalidad
+# esta corresponde a una version anterior de la initT
+###
 
+###
+# Funcion de inicializar tabla, la cual es la que se utiliza en distribuidor.jl
+# Todos los parametros necesarios son pasados por los argumentos
+# 
+###
 function initT(bool::Bool,ta::Tabla,num::Int,limT::Int,Arch::Array)
 	t = Tabla()
 	t.categorias = ta.categorias
 	t.indiceT =  ta.indiceT
+	#Funcion giveElements implementada en distribuidor.jl
 	t.files = giveElements(num,true,Arch)
 	t.limTextos = limT
 	text2vector(t,t.files)
 	return t
 end
-function splitTrainTest(t::Tabla,limSuperior::Float64)
-	t.Test = splice!(t.files,int((t.textos*limSuperior)+1):t.textos)
-	t.textos -= t.textos*(1-limSuperior)
-end
-function addTablas(t1::Tabla,t2::Tabla)
-	tablaAux = Tabla()
-	tablaAux.categorias = t1.categorias
-	tablaAux.indiceT = t1.indiceT
-	tablaAux.files = cat(1,t1.files,t2.files)
-	tablaAux.limTextos = t1.limTextos
-	text2vector(tablaAux,tablaAux.files)
-	return tablaAux
-end
-function removeFiles(t1::Tabla)
-	n = t1.textos-t1.limTextos
-	splice!(t1.files,1:n)
-	t1.textos = t1.limTextos
-end
 
-
-function initT(dir::String,limitWords::Int,flagIdf::Bool)
-	t = Tabla()
-	t.categorias = readdir(dir)
-	files = []
-	for cate in t.categorias
-		f = readdir(dir*"/"*cate)
-		for element in f
-			files = cat(1,files,dir*"/"*cate*"/"*element)
-			t.indiceT[dir*"/"*cate*"/"*element] = cate
-		end
-	end
-	
-	
-	t.files = shuffle!(files)
-	text2vector(t,t.files)
-	#updateDiccWithRanking!(t,limitWords,flagIdf)
-	#t.limitTest = limititTest
-	#a = itTest(t,5)
-	a = iHistogram(t,5)
-	#println(t.textos)
-	t.limSuperior = a[1]
-	t.limInferior = a[2]
-	t.porcentaje = a[3]
-
-	return t
-
-end
-function fileHistogram(Hist::Array,dir::String,iteracion)
+###
+#Funcion fileHistogram, realiza un output a un archivo de un histograma de las palabras. (https://es.wikipedia.org/wiki/Histograma)
+###
+function fileHistogram(Hist::Array,dir::AbstractString,iteracion)
 	file = open(dir*"hist/histograma $iteracion .txt","w")
 	for linea in Hist
 		println(file,linea)
 	end
 	close(file)
 end
-function tokenizer(Diccionario::Dict,texto::String)
+
+###
+#tokenizer: crea un diccionario con las frecuencias de cada palabra en un texto
+#Luego de estandarizarlo genera un diccionario con la posicion de cada palabra en un futuro arreglo que se creara
+#llamado por textsInput 
+###
+function tokenizer(Diccionario::Dict,texto::AbstractString)
 	est = estandarizar(texto)
-	i = 1
 	splitted = split(est)
 	for word in splitted
 		if !haskey(Diccionario,word)
-			#println(word*" palabra numero: "*string(Diccionario.count + 1))
 			Diccionario[word] = Diccionario.count + 1
 		end		
 	end
 	return Diccionario
 end
 
-function textsInput()
-	Diccionario = Dict()
-	files = readdir("./Textos")
-	for file in files
-		f = open("./Textos/"*file)
-		Diccionario = tokenizer(Diccionario,readall(f))
-		close(f)
-	end
-	return Diccionario
-end
+###
+#textsInput: Genera un diccionario con la posicion de las palabras para 
+#todos los archivos contenidos en Arr (iterando a traves de todos los archivos)
+#llamado por text2vector
+###
 function textsInput(Arr::Array)
 	Diccionario = Dict()
 	
@@ -108,38 +79,13 @@ function textsInput(Arr::Array)
 	return Diccionario
 end
 
-function textsInput(dir::String)
-	Diccionario = Dict()
-	categories = readdir("./"*dir)	
-	for cat in categories
-		files = readdir("./"*dir*"/"*cat)	
-	end
-	
-	for file in files
-		f = open("./"*dir*"/"*cat*"/"file)
-		Diccionario = tokenizer(Diccionario,readall(f))
-		close(f)
-	end
-	return Diccionario
-end
-
-function text2vector(test::Bool,dir::String)
-
-	if test
-		Dicc = textsInput()
-		x = length(readdir("./Textos/"))
-		vector = zeros(Int,x*Dicc.count)
-		updateVector!(vector,Dicc)
-		return vector
-	else
-		Dicc = textsInput(dir)
-		x = length(readdir("./Textos/"))
-		vector = zeros(Int,x*Dicc.count)
-		updateVector!(vector,Dicc)
-		return vector
-	end
-end
-
+###
+#Genera e inicializa el contenido para las tablas, considerando los archivos de entrada
+# - Genera una bagOfWords para la tabla de todos los documentos (t.Diccionario = textsInput(Arr))
+# - Obtiene la cantidad de textos/twits con los que se va a trabajar, entrenar.
+# - Inicializa vectores con las frequencias, promedios y desviaciones estandard para cada palabra (estas ultimas dos en relacion a la frecuencia) 
+# - Actualiza las frecuencias totales para cada palabra (updateVector!(t.frequencias,t.Diccionario,Arr))
+###
 function text2vector(t::Tabla,Arr::Array)
 		shuffle!(Arr)	
 		t.Diccionario = textsInput(Arr)
@@ -151,23 +97,10 @@ function text2vector(t::Tabla,Arr::Array)
 	
 end
 
-function text2vector(t::Tabla,test::Bool,dir::String)
-	shuffle!(files)
-	if test
-		t.Diccionario = textsInput()
-		t.textos = length(readdir("./Textos/"))
-		t.frequencias = zeros(Int,t.textos,t.Diccionario.count)
-		t.promedios= zeros(Float64,t.Diccionario.count)
-		t.desv= zeros(Float64,t.Diccionario.count)
-		updateVector!(t.frequencias,t.Diccionario)
-	else
-		Dicc = textsInput(dir)
-		x = length(readdir("./Textos/"))
-		vector = zeros(Int,x*Dicc.count)
-		vector = reshape(vector,x,Dicc.count)
-		updateVector!(vector,Dicc)
-	end
-end
+###
+#actualiza un vector el cual contiene todas las palabras para todos los documentos/textos (arreglo Arr)
+#para obtener las frecuencias totales para todas las palabras en todos los documentos.
+###
 function updateVector!(vector::Array,Dicc::Dict,Arr::Array)
 	i=1
 	for file in Arr
@@ -185,6 +118,11 @@ function updateVector!(vector::Array,Dicc::Dict,Arr::Array)
 	end
 	##println(reshape(vector,i,Dicc.count))
 end
+
+###
+#funcion que actualiza todos los promedios y desviaciones estandard para cada palabra
+#segun su frecuencia en todo el corpus de textos
+###
 function updateMeanStd(t::Tabla)
 	i = int(1)
 	#while i <= t.textos 
@@ -197,52 +135,20 @@ function updateMeanStd(t::Tabla)
 	end
 end
 
-function tTest1(t::Tabla)
-
-	x1 = mean(t.promedios[1:t.textos/2])
-	x2 = mean(t.promedios[floor(t.textos/2)+1:t.textos])
-	s1 = std(t.promedios[1:t.textos/2])
-	s2 = std(t.promedios[floor(t.textos/2)+1:t.textos])
-	s12 = ((s1^2)/(t.textos/2)) + ((s2^2)/(t.textos/2))
-	s12 = sqrt(s12)
-	tTest = (x1-x2)/s12
-	return tTest
-end
-
-function tTestWords(t::Tabla)
-	tTest = zeros(Float64,t.Diccionario.count)
-	for i in 1:t.Diccionario.count
-		x1 = mean(t.frequencias[1:t.textos/2,i])
-		x2 = mean(t.frequencias[floor(t.textos/2)+1:t.textos,i])
-		s1 = std(t.frequencias[1:t.textos/2,i])
-		s2 = std(t.frequencias[floor(t.textos/2)+1:t.textos,i])
-		s12 = ((s1^2)/(t.textos/2)) + ((s2^2)/(t.textos/2))
-		s12 = sqrt(s12)
-		tTest[i] = (x1-x2)/s12
-	end
-	return tTest
-end
-
-function tTestWords(t::Tabla,n1::Float64,n2::Float64)
-	tTest = zeros(Float64,t.Diccionario.count)
-	for i in 1:t.Diccionario.count
-		x1 = mean(t.frequencias[1:t.textos*n1,i])
-		x2 = mean(t.frequencias[floor(t.textos*n1)+1:t.textos,i])
-		s1 = std(t.frequencias[1:t.textos*n1,i])
-		s2 = std(t.frequencias[floor(t.textos*n1)+1:t.textos,i])
-		if t.varianzas[i] < 0.764 || t.varianzas[i] > 1.284
-			s12 = ((s1^2)/(t.textos*n1)) + ((s2^2)/(t.textos*n2))
-			s12 = sqrt(s12)
-		else
-			s12 = (((t.textos*n1)-1)*(s1^2) + ((t.textos*n2)-1)*(s2^2))/((t.textos*n1)+(t.textos*n2)-2)
-			#s12 = sqrt(s12)*sqrt(((1/(t.textos*n1))+(1/(t.textos*n2))
-		end
-		
-		tTest[i] = (x1-x2)/s12
-	end
-	return tTest
-end
-##### ESTE ES EL IMPORTANTE f1234
+###
+# tTestWords: funcion qque genera una tabla auxiliar para obtener los valores indice t-student
+# para todas las pabras en el corpus de textos (textos que estan en el conocimiento del 
+# clasificador, y comparandolos con los textos del conjunto nuevo)
+# el procedimiento para calcular estos valores son
+# - creo una tabla temporal la cual contiene los archivos de ambas tablas
+# - si es que hay que utilizar ranking de palabras, genero el ranking de las N palabras mas importantes (n = numRanking)
+# - obtengo todos los textos (indices en files) que corresponden para cada conjunto (n1 y n2)
+# - actualizo las varianzas para dichos conjuntos con el fin de obtener el valor critico de la prueba F-test_of_equality_of_variances para cada palabra.
+# - obtengo el promedio y las deviasones estandard para cada palabra
+# - comparo el valor critico de la prueba F-test_of_equality_of_variances para saber cual formula de t-student ocupar (https://en.wikipedia.org/wiki/Student%27s_t-test#Independent_two-sample_t-test)
+# -obtengo el valor t para la palabra i.
+# - retorno un arreglo con los valores t para todas las palabras del conjuntos de textos (texto1 + texto2)
+###
 function tTestWords(t1::Tabla,t2::Tabla,numRanking::Int,tfIdf::Bool)
 	tabla_temporal = Tabla()
 	tabla_temporal.categorias = t1.categorias
@@ -274,6 +180,9 @@ function tTestWords(t1::Tabla,t2::Tabla,numRanking::Int,tfIdf::Bool)
 	return tTest
 end
 
+###
+#Este calcula la distancia 
+###
 function dHistogramsWords(t1::Tabla,t2::Tabla,numRanking::Int,tfIdf::Bool)
 	tabla_temporal = Tabla()
 	tabla_temporal.categorias = t1.categorias
@@ -291,25 +200,15 @@ function dHistogramsWords(t1::Tabla,t2::Tabla,numRanking::Int,tfIdf::Bool)
 	return diff
 end
 
-function histogram(t::Tabla,n1::Int,n2::Int)
-	tablaAux = Tabla()
-	tablaAux.Diccionario = t.Diccionario
-	n = length(t.frequencias[1,:])
-	tablaAux.frequencias = t.frequencias[n1:n2,:]
-	hist = ranking(tablaAux,n)
-	return hist
-end
-function histogram2(t::Tabla,n1::Int,n2::Int)
-	tablaAux = Tabla()
-	tablaAux.Diccionario = t.Diccionario
-	n = length(t.frequencias[1,:])
-	tablaAux.frequencias = t.frequencias[n1:n2,:]
-	hist = ranking2(tablaAux,n)
-	return hist
-end
+
 ##### FIN DEL IMPORTANTE
 
-
+###
+# Ve si el valor esta contenido entre 2 puntos de una tabla de distribuciones
+# (valores mas altos de una tabla de t-student), con el fin de ver cuantos elementos del
+# arreglo Arr, exceden los limites de un intervalo de confianza del 95% en una prueba de dos colas.)
+# retorna el porcentaje del total de elementos los cuales excenden los valores criticos
+###
 function criticalValue(Arr::Array)
 i = 0
 	for el in Arr
@@ -320,6 +219,11 @@ i = 0
 return (i/length(Arr))
 
 end
+
+###
+# Prueba F de varianzas. (https://en.wikipedia.org/wiki/F-test_of_equality_of_variances)
+# Esta funcion realiza un test de hipotesis donde calcula que tan iguales son las varianzas
+###
 function varianceTest(t::Tabla,n1::Float64,n2::Float64)
 	vTest = zeros(Float64,t.Diccionario.count)
 	for i in 1:t.Diccionario.count
@@ -339,6 +243,10 @@ function varianceTest(t::Tabla,n1::Float64,n2::Float64)
 	end
 	return vTest
 end
+###
+# Actualiza las varianzas para cada palabra entre dos conjuntos de textos  en una tabla
+# llama a la funcion de prueba de varianzas
+###
 function updateVariance!(t::Tabla,n1::Float64,n2::Float64)
 	t.varianzas = varianceTest(t,n1,n2)
 end
@@ -355,100 +263,9 @@ function tTest2(t::Tabla,n1::Float64,n2::Float64)
 	
 end
 
-function itTest(t::Tabla,maxIteration::Int)
-	a = 0
-	b = 0
-	mintTest = 1
-	for i in 1:maxIteration
-		for j in 0:i-1
-		updateVariance!(t,(j+1)/(i+1),(i-j)/(i+1))
-		test = tTestWords(t,(j+1)/(i+1),(i-j)/(i+1))
-		x = criticalValue(test)
-		if x < mintTest
-			mintTest = x
-			a = (j+1)/(i+1)
-			b = (i-j)/(i+1)
-		end
-	end
-		
-	end	
-	println("tstudent mas normal: $mintTest, a:$a, b:$b")
-	return [a,b,mintTest]
-end
-function iHistogram(t::Tabla,maxIteration::Int)
-	a = 0
-	b = 0
-	mintTest = 1
-	for i in 1:maxIteration
-		for j in 0:i-1
-		hist1 =histogram(t,(j+1)/(i+1),false,t.Diccionario.count)
-		hist2 = histogram(t,(j+1)/(i+1),true,t.Diccionario.count)
-		test = distHistogram(hist1,hist2)
-		
-		if abs(test) < mintTest
-			mintTest = abs(test)
-			a = (j+1)/(i+1)
-			b = (i-j)/(i+1)
-		end
-	end
-		
-	end	
-	println("diferencia de histogramas menor: $mintTest, a:$a, b:$b")
-	return [a,b,mintTest]
-end
-
-function iHistogram(t::Tabla,maxIteration::Int,Tipo::Int)
-	a = 0
-	b = 0
-	mintTest = 1
-	for i in 1:maxIteration
-		for j in 0:i-1
-		hist1 =histogram(t,(j+1)/(i+1),false,t.Diccionario.count)
-		hist2 = histogram(t,(j+1)/(i+1),true,t.Diccionario.count)
-		test = distHistogram(hist1,hist2,Tipo)
-		
-		if abs(test) < mintTest
-			mintTest = abs(test)
-			a = (j+1)/(i+1)
-			b = (i-j)/(i+1)
-		end
-	end
-		
-	end	
-	println("diferencia de histogramas menor: $mintTest, a:$a, b:$b")
-	return [a,b,mintTest]
-end
-function ranking(t::Tabla,indice::Int)
-	dicc = Dict()
-	freq = zeros(Int,t.Diccionario.count)
-	
-	for i in 1: t.Diccionario.count
-		freq[i] = sum(t.frequencias[:,i])
-	end
-	total = sum(freq)
-	freq = freq/total
-	for key in keys(t.Diccionario)
-
-		dicc[key] = freq[t.Diccionario[key]]
-	end
-	arr = sort(collect(dicc),by = tuple -> last(tuple),rev=true)[1:indice]
-	return arr
-end
-function ranking2(t::Tabla,indice::Int)
-	dicc = Dict()
-	freq = zeros(Int,t.Diccionario.count)
-	
-	for i in 1: t.Diccionario.count
-		freq[i] = sum(t.frequencias[:,i])
-	end
-	total = sum(freq)
-	for key in keys(t.Diccionario)
-
-		dicc[key] = freq[t.Diccionario[key]]
-	end
-	arr = sort(collect(dicc),by = tuple -> last(tuple),rev=true)[1:indice]
-	return arr
-end
+###
+#
+###
 function toTuple(t::Tabla)
 	dicc = Dict()
 	freq = zeros(Int,t.Diccionario.count)
@@ -462,6 +279,10 @@ function toTuple(t::Tabla)
 	arr = collect(dicc)
 	return arr
 end
+
+###
+#Obtener el ranking con tf-idf
+###
 function rankingTfIdf(Diccionario::Dict,tfIdf::Array,indice::Int)
 	dicc = Dict()
 	n = length(tfIdf[1,:])
@@ -475,7 +296,10 @@ function rankingTfIdf(Diccionario::Dict,tfIdf::Array,indice::Int)
 	arr = sort(collect(dicc),by = tuple -> last(tuple),rev=true)[1:indice]
 	return arr
 end
-##Ranking palabras mas repetidas
+
+###
+#Ranking palabras mas repetidas (mayor frecuencia) con ranking de palabras
+###+
 function updateDiccWithRanking!(t::Tabla,indice::Int)
 	arr = ranking(t,indice)
 	Dicc = Dict()
@@ -490,7 +314,10 @@ function updateDiccWithRanking!(t::Tabla,indice::Int)
 	t.desv= zeros(Float64,t.textos)
 	updateVector!(t.frequencias,t.Diccionario,t.files)
 end
-##Ranking con tf-idf
+
+###
+#Ranking con tf-idf
+###
 function updateDiccWithRanking!(t::Tabla,indice::Int,bool::Bool)
 println("Dicc with ranking $indice, $bool para tfidf")
 	if !bool
@@ -512,7 +339,10 @@ println("Dicc with ranking $indice, $bool para tfidf")
 		updateVector!(t.frequencias,t.Diccionario,t.files)
 	end
 end
-### Funcion que obtiene Inverse document frecuency
+
+### 
+#Funcion que obtiene Inverse document frecuency
+###
 function idf(ar::Array)
 	N = length(ar)
 	count = 0
@@ -524,11 +354,14 @@ function idf(ar::Array)
 	val = log10(N/count)
 	return val
 end
-### Funcion que obtiene el term frequency - inverse document frequency
-### https://en.wikipedia.org/wiki/Tf%E2%80%93idf
+
+### 
+#Funcion que obtiene el term frequency - inverse document frequency (https://en.wikipedia.org/wiki/Tf%E2%80%93idf)
+#retorna una matriz con los pesos tf-idf calculadoss
+### 
 function tfidf(t::Tabla)
 	tfIdf = zeros(Float64,t.textos,t.Diccionario.count)
-	Idf = zeros (Float64,t.Diccionario.count)	
+	Idf = zeros(Float64,t.Diccionario.count)	
 	for i in 1:t.textos
 		for j in 1:t.Diccionario.count
 			if t.frequencias[1,:] != 0
@@ -544,6 +377,22 @@ function tfidf(t::Tabla)
 	end
 	return tfIdf
 end
+
+###
+#obtiene el histograma segun dos indices (n1 y n2) para luego aplicar ranking
+###
+function histogram(t::Tabla,n1::Int,n2::Int)
+	tablaAux = Tabla()
+	tablaAux.Diccionario = t.Diccionario
+	n = length(t.frequencias[1,:])
+	tablaAux.frequencias = t.frequencias[n1:n2,:]
+	hist = ranking(tablaAux,n)
+	return hist
+end
+
+###
+# obtiene el histograma segun el corte superior o inferior y se le aplica el ranking
+###
 function histogram(t::Tabla,n1::Float64,Bottom::Bool,indice::Int)
 	tablaAux = Tabla()
 	tablaAux.Diccionario = t.Diccionario
@@ -556,6 +405,30 @@ function histogram(t::Tabla,n1::Float64,Bottom::Bool,indice::Int)
 	hist = ranking(tablaAux,indice)
 	return hist
 end
+
+###
+#Ranking entrega las N palabras con la frecuencia relativa (freq/total) (indice = N)
+###
+function ranking(t::Tabla,indice::Int)
+	dicc = Dict()
+	freq = zeros(Int,t.Diccionario.count)
+	
+	for i in 1: t.Diccionario.count
+		freq[i] = sum(t.frequencias[:,i])
+	end
+	total = sum(freq)
+	freq = freq/total
+	for key in keys(t.Diccionario)
+
+		dicc[key] = freq[t.Diccionario[key]]
+	end
+	arr = sort(collect(dicc),by = tuple -> last(tuple),rev=true)[1:indice]
+	return arr
+end
+
+###
+# Histograma2 retorna un histograma utilizando la funcion de ranking2 (frecuencias de palabras)
+###
 function histogram2(t::Tabla,n1::Float64,Bottom::Bool,indice::Int)
 	tablaAux = Tabla()
 	tablaAux.Diccionario = t.Diccionario
@@ -568,6 +441,29 @@ function histogram2(t::Tabla,n1::Float64,Bottom::Bool,indice::Int)
 	hist = ranking2(tablaAux,indice)
 	return hist
 end
+
+###
+# Este entrega las N palabras con mayor frecuencia en toda la tabla. (N = indice)
+###
+function ranking2(t::Tabla,indice::Int)
+	dicc = Dict()
+	freq = zeros(Int,t.Diccionario.count)
+	
+	for i in 1: t.Diccionario.count
+		freq[i] = sum(t.frequencias[:,i])
+	end
+	total = sum(freq)
+	for key in keys(t.Diccionario)
+
+		dicc[key] = freq[t.Diccionario[key]]
+	end
+	arr = sort(collect(dicc),by = tuple -> last(tuple),rev=true)[1:indice]
+	return arr
+end
+
+###
+# Obtener el histograma de una tabla sin realizar ranking
+###
 function histogramWithoutRanking(t::Tabla,n1::Float64,Bottom::Bool)
 	tablaAux = Tabla()
 	tablaAux.Diccionario = t.Diccionario
@@ -581,10 +477,11 @@ function histogramWithoutRanking(t::Tabla,n1::Float64,Bottom::Bool)
 	return hist
 end
 
-### Funcion que obtiene distancia (diferencia) entre dos histogramas
-### Entrega 3 tipos distintos de distancias 
-### Distancia de sorensen https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
-
+###
+# Funcion que obtiene distancia (diferencia) entre dos histogramas
+# Entrega 3 tipos distintos de distancias 
+# Distancia de sorensen https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
+###
 function distHistogram(Arr1::Array,Arr2::Array)
 	dicc = Dict()
 	i = 1
@@ -612,10 +509,11 @@ function distHistogram(Arr1::Array,Arr2::Array)
 	return dist
 end
 
-### Funcion que obtiene distancia (diferencia) entre dos histogramas
-### Entrega 3 tipos distintos de distancias 
-### Distancia de sorensen https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
-
+###
+# Funcion que obtiene distancia (diferencia) entre dos histogramas
+# Entrega 3 tipos distintos de distancias 
+# Distancia de sorensen https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
+###
 function distHistogram(Arr1::Array,Arr2::Array,tipo::Int)
 	dicc = Dict()
 	i = 1

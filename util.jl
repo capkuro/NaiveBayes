@@ -2,6 +2,8 @@ stopwords = ["a, acuerdo"," adelante"," ademas"," además"," adrede"," ahi"," ah
 
 chars = ["\n","\"","\r","<AUTHOR>","</AUTHOR>",".",",","-","<",">","(",")","?","!"] #"
 links = r"\b((https?:\/\/)?([\da-z0-9\.-]+)\.([a-z0-9\.]{2,6})([\/\w\.-]*)*\/?)\b"
+
+#Estandarizar todo el texto y remover terminos como rt (retwit) y demases
 function estandarizar(texto)
 	texto = lowercase(texto)
 	texto = replace(texto,links,"")
