@@ -1,30 +1,4 @@
-function init(dir::String)
-	dicc = Dict()
-	DClasses = readdir(dir)
-	for class in DClasses
-		docs = readdir(dir*"/"*class)
-		dicc[class] = docs
-	end
-	return dicc
-	println("done init")
-end
 
-function imprimirDebug(foo)
-	println(string(foo))
-end
-
-function parser!(s::String)
-	texto = replace(s,"\n","")
-	return texto
-
-end
-y=0
-function sum()
-	global y = y + 1
-end
-function printY()
-	return y
-end
 Task1 = @async begin
          server = listen(2001)
 		 dicc  = Dict()  ## Diccionario de documentos con sus clases

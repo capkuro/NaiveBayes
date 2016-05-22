@@ -1,146 +1,153 @@
-function init(dir::String)
-	dicc = Dict()
-	DClasses = readdir(dir)
-	for class in DClasses
-		docs = readdir(dir*"/"*class)
-		dicc[class] = docs
-	end
-	return dicc
-	println("done init")
-end
+include("../Main.jl")
+global p = Pool()
+global pools = Pool[]
+global ta = Tabla()
+arch = []
 
-function imprimirDebug(foo)
-	println(string(foo))
-end
-
-function parser!(s::String)
+function parser(s::String)
 	texto = replace(s,"\n","")
 	return texto
 
 end
-y=0
-function sum()
-	global y = y + 1
+function getElements(conn)
+	flag = true
+	arr = []
+	println(conn,"Query")
+	println(conn,"give_elements")
+	println(conn,"none") #sin argumentos
+	while flag
+		x = readline(conn)
+		x = parser(x)
+		if x == "Done: give_elements"
+			flag = false
+		else
+			push!(arr,x)
+		end
+	end
+	return arr
 end
-function printY()
-	return y
+function getNewTrainData(conn)
+	flag = true
+	arr = []
+	while flag
+		x = readline(conn)
+		x = parser(x)
+		if x == "Done: give_new_train_data"
+			flag = false
+		else
+			push!(arr,x)
+		end
+	end
+	return arr
 end
-Task1 = @async begin
-         server = listen(2001)
-		 dicc  = Dict()  ## Diccionario de documentos con sus clases
-		 reTrain = String[]
-		 cont_erroneos = 0
-		 cont_positivos = 0
-		 umbral = 70 ## default
-		 batch = 0
-		 batch_umbral = 0 ## default
-		 sockets = []
-		 println(y)
-		while true
-           sock = accept(server)
-		   push!(sockets,sock)
-		   sk = sock
+function giveElements(conn,arch::Array,args::String)
+	println(conn,"Query")
+	println(conn,"llenar_tabla")
+	println(conn,args) #sin argumentos
+	for el in arch
+		println(conn,el)
+	end
+	println(conn,"Done: give_files")
+	println(parser(readline(conn)))
+end
+function train(conn,arch::Array)
+
+	for file in arch
+		println(conn,"Query")
+		println(conn,"get_doc_class")
+		println(conn,file)
+		class = parser(readline(conn))		
+		(readline(conn)) ## done get_doc_class
+		learnFile(p,file,class)	
+	end
+	
+end
+function trainLim(conn,arch::Array)
+	newPool = Pool()
+	p.clases = newPool.clases
+	p.vocabulario = newPool.vocabulario
+	for file in arch
+		println(conn,"Query")
+		println(conn,"get_doc_class")
+		println(conn,file)
+		class = parser(readline(conn))		
+		(readline(conn)) ## done get_doc_class
+		learnFile(p,file,class)	
+	end
+	po = p
+	
+end
+
+function test(conn,arch::Array)
+	resultsAcc = Tuple[]
+	for file in arch
+		println(conn,"Query")
+		println(conn,"get_doc_class")
+		println(conn,file)
+		class = parser(readline(conn))		
+		(readline(conn)) ## done get_doc_class
+		res = probabilidad(p,file)	
+		push!(resultsAcc,tuple(class,res[1]))
+	end
+	return resultsAcc
+	
+end
+# Genero la conexion con el agente distribuidor (Puerto 2001) y el agente critico (Puerto 2002)
+
+connDist = connect("localhost",2001)
+connCrit = connect("localhost",2002)
+println(connDist,"Handshake")
+x = parser(readline(connDist))
+println(x)
+
+println(connCrit,"Handshake")
+x = parser(readline(connCrit))
+println(x)
+
+### Esta es la primera iteración
+arch = getElements(connDist)
+archTrain = arch[1:floor(length(arch)*0.7)] #70% para training
+archTest = arch[floor(length(arch)*0.7)+1:floor(length(arch))] #30% para testing
+giveElements(connCrit,archTrain,"tabla1")
+train(connDist,archTrain)
+res = test(connDist,archTest)
+
+for i in 1:9
+	arch = getElements(connDist)
+	archTrain = arch[1:floor(length(arch)*0.7)] #70% para training
+	archTest = arch[floor(length(arch)*0.7)+1:length(arch)] #30% para testing
+	giveElements(connCrit,arch,"tabla2")
+	println(connCrit,"Query")
+	println(connCrit,"check_tables") #query
+	println(connCrit,"none") #arguments
+	resp = parser(readline(connCrit))
+	println(resp)
+	println(parser(readline(connCrit))) #done check_tables
+	if resp =="Re-train"
+		println("Re-training")
+		giveElements(connCrit,archTrain,"tabla2")
 		
-           @async while isopen(sock)
-			 x = readline(sock)
-			 x = parser!(x)
-			 println(x)
-			 if x == "Handshake"
-				println(sock,"Handshake")
-			 end
-			 if x == "sum"
-				sum()
-			 end
-			 if x == "printY"
-				println(sock,printY())
-			 end
-			 if x == "Query"
-				query = parser!(readline(sock))
-				
-				args = parser!(readline(sock))
-				println("Query: "*query*" with Argument(s): "*args)
-				## Definicion de interacciones
-				if query == "init"
-					dicc = init(args)
-				end
-				if query == "get_doc_class"
-				class = get_doc_class(dicc,args)
-						## envio la clase
-						println(sock,class)
-				end
-				if query == "check_certainty"
-				check = certainty(args)
-				end
-				if query == "check_doc"
-					check = check_doc(dicc,args)
-					if check
-						println(sock,"doc_class_true")
-						cont_positivos +=1
-						
-					else
-						##Aviso que esta errada la clasificacion
-						println(sock,"doc_class_false")
-						##obtengo la clase verdadera
-						class = get_doc_class(dicc,args)
-						## envio la clase
-						println(sock,class)
-						##obtengo la direccion
-						dir = parser!(readline(sock))
-						push!(reTrain,dir*";"*class)
-						cont_erroneos += 1
-						batch += 1
-						acc = (cont_positivos/(cont_erroneos+cont_positivos)*100)
-						if acc <= umbral && (cont_positivos + cont_erroneos) > 10 && (batch >= batch_umbral)
-							println("Accuracy clasificador: $acc % vs $umbral %" )
-							println(sock, "retrain_docs")
-							println(sock, reTrain)
-							reTrain = String[]
-							batch = 0
-						else
-							println(sock,"feed")
-						end
-					end
-				end
-				
-				if query == "debug_dict"
-					imprimirDebug(dicc)
-				end
-				if query == "debug_threshold"
-					imprimirDebug(umbral)
-				end
-				if query == "debug_batch_threshold"
-					imprimirDebug(batch_umbral)
-				end
-				if query == "change_threshold"
-					umbral = int(args)
-				end
-				if query == "change_batch_threshold"
-					batch_umbral = int(args)
-				end
-				if query == "safe_reset"
-					## reset variables para benchmarks
-					reTrain = String[]
-					cont_erroneos = 0
-					cont_positivos = 0
-					umbral = 70
-					batch = 0
-					batch_umbral = 0
-				end
-				
-				println(sock,"Done: "*query)
-			end
-			 ##Revisar esto en algun momento
-             if x == "kill"
-				println("Killing server")
-				println(sock,"killed")
-				ex = InterruptException()
-				Base.throwto(Task1,ex)
-				return false
-			 end
-
-			 
-           end
-         end
-    end
-
- 
+		println(connCrit,"Query")
+		println(connCrit,"add_tables") # query
+		println(connCrit,"none") # Arguments
+		retrainMsg = parser(readline(connCrit)) #Tipo de retraining
+		
+		if retrainMsg == "limTextos retrain"
+			archTrain = getNewTrainData(connCrit)
+			trainLim(connDist,archTrain)
+		end
+		if retrainMsg == "normal retrain"
+			train(connDist,archTrain)
+		end	
+		println(parser(readline(connCrit))) # #done add_tables
+		n = 0
+		for key in keys(p.clases)
+			n += p.clases[key].number_of_docs
+		end
+		print("cant: ")
+		println(n)
+	end
+	
+	res = test(connDist,archTest)
+	println(res)
+end

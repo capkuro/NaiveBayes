@@ -52,7 +52,7 @@ function initT(bool::Bool,ta::Tabla,num::Int,limT::Int,Arch::Array)
 	t.categorias = ta.categorias
 	t.indiceT =  ta.indiceT
 	#Funcion giveElements implementada en distribuidor.jl
-	t.files = giveElements(num,true,Arch)
+	t.files = giveElements(num,bool,Arch)
 	t.limTextos = limT
 	text2vector(t,t.files)
 	return t

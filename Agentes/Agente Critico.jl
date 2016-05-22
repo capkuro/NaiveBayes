@@ -1,151 +1,115 @@
-function init(dir::String)
-	dicc = Dict()
-	DClasses = readdir(dir)
-	for class in DClasses
-		docs = readdir(dir*"/"*class)
-		dicc[class] = docs
-	end
-	return dicc
-	println("done init")
-end
+include("../Tokenizer.jl")
 
-function addDoc!(dicc::Dict,doc::String,class::String)
-	if haskey(dicc,class)
-		docs = dicc[class]
-		push!(docs,doc)
-	else
-		dicc[class] = [doc]
-	end
-end
+global tabla1 = Tabla()
+global tablaAux = Tabla()
+global flagHistogram = false
+global critval = 0.2
+global limTextos = 1000
 
-function certainty(args::String)
-	argumentos = split(args,",")
-	println(int(argumentos))
-end
-function check_doc(dicc::Dict,args::String)
-
-	argumentos = split(args,",") ## Estructura del mensaje: nombre_doc, class. ##Ambos string
-	if haskey(dicc,argumentos[2])
-		docs = dicc[argumentos[2]]
-		for doc in docs
-			if doc == argumentos[1]
-				return true
-			end
-		end
-	end
-	return false
-	
-end
-
-function get_doc_class(dicc::Dict,args::String)
-
-	argumentos = split(args,",") ## Estructura del mensaje: nombre_doc, class. ##Ambos string
-	doc = argumentos[1]
-	for key in keys(dicc)
-		docs = dicc[key]
-		for document in docs
-			if document == doc
-				return key
-			end
-		end
-		
-	end
-	return "none"
-end
-
-function imprimirDebug(foo)
-	println(string(foo))
-end
-
-function parser!(s::String)
+function parser(s::String)
 	texto = replace(s,"\n","")
 	return texto
 
 end
-y=0
-function sum()
-	global y = y + 1
+function llenar_tabla(conn,ta::Tabla)
+	println("Llenar tabla")
+	files = getFiles(conn)
+	num = length(files)
+	ta.files = files
+	ta.limTextos = 1000 # cambiar esto
+	text2vector(ta,ta.files)
 end
-function printY()
-	return y
+function getFiles(conn)
+	flag = true
+	arr = []
+	while flag
+		x = readline(conn)
+		x = parser(x)
+		if x == "Done: give_files"
+			flag = false
+		else
+			push!(arr,x)
+		end
+	end
+	return arr
 end
+function check_tables(conn,t1::Tabla,t2::Tabla)
+	if flagHistogram
+		val = dHistogramsWords(t1,t2,0,false)
+		crit = val
+	else
+		val = tTestWords(t1,t2,0,false)
+		crit = criticalValue(val)
+	end
+	println(crit)
+	println(critval)
+	if crit > critval
+		println(conn,"Re-train")
+	else
+		println(conn,"clasify")
+	end
+	
+end
+function add_tables(conn,t1,t2)
+	ta = addTablas(t1,tablaAux)
+	t1 = ta
+	if t1.textos > limTextos 
+		println(conn,"limTextos retrain") #Re-entrenamiento con limite de textos
+		removeFiles(t1)
+		giveNewTrainData(conn,t1.files)
+	else
+		println(conn,"normal retrain") #Re-entrenamiento sin limite de textos
+	end
+	return ta
+end
+function giveNewTrainData(conn,arch::Array)
+	for el in arch
+		println(conn,el)
+	end
+	println(conn,"Done: give_new_train_data")
+end
+function removeFiles(t1::Tabla)
+	n = t1.textos - limTextos
+	splice!(t1.files,1:n)
+	t1.textos = t1.limTextos
+end
+###
+#Servidor creado en el puerto 2002 con una tarea asincrona
+###
 Task1 = @async begin
-         server = listen(2001)
-		 dicc  = Dict()  ## Diccionario de documentos con sus clases
-		 reTrain = String[]
-		 cont_erroneos = 0
-		 cont_positivos = 0
-		 umbral = 70 ## default
-		 batch = 0
-		 batch_umbral = 0 ## default
-		 sockets = []
-		 println(y)
+         server = listen(2002)
+		 t1 = tabla1
 		while true
-           sock = accept(server)
-		   push!(sockets,sock)
-		   sk = sock
-		
+           sock = accept(server)		
            @async while isopen(sock)
 			 x = readline(sock)
-			 x = parser!(x)
+			 x = parser(x)
 			 println(x)
 			 if x == "Handshake"
 				println(sock,"Handshake")
 			 end
-			 if x == "sum"
-				sum()
-			 end
-			 if x == "printY"
-				println(sock,printY())
-			 end
 			 if x == "Query"
-				query = parser!(readline(sock))
-				
-				args = parser!(readline(sock))
+				query = parser(readline(sock))				
+				args = parser(readline(sock))
 				println("Query: "*query*" with Argument(s): "*args)
 				## Definicion de interacciones
 				if query == "init"
 					dicc = init(args)
 				end
-				if query == "get_doc_class"
-				class = get_doc_class(dicc,args)
-						## envio la clase
-						println(sock,class)
-				end
-				if query == "check_certainty"
-				check = certainty(args)
-				end
-				if query == "check_doc"
-					check = check_doc(dicc,args)
-					if check
-						println(sock,"doc_class_true")
-						cont_positivos +=1
-						
-					else
-						##Aviso que esta errada la clasificacion
-						println(sock,"doc_class_false")
-						##obtengo la clase verdadera
-						class = get_doc_class(dicc,args)
-						## envio la clase
-						println(sock,class)
-						##obtengo la direccion
-						dir = parser!(readline(sock))
-						push!(reTrain,dir*";"*class)
-						cont_erroneos += 1
-						batch += 1
-						acc = (cont_positivos/(cont_erroneos+cont_positivos)*100)
-						if acc <= umbral && (cont_positivos + cont_erroneos) > 10 && (batch >= batch_umbral)
-							println("Accuracy clasificador: $acc % vs $umbral %" )
-							println(sock, "retrain_docs")
-							println(sock, reTrain)
-							reTrain = String[]
-							batch = 0
-						else
-							println(sock,"feed")
-						end
+				if query == "llenar_tabla"
+					if args == "tabla1"
+						llenar_tabla(sock,t1)
 					end
+					if args == "tabla2"
+						llenar_tabla(sock,tablaAux)
+					end	
 				end
-				
+				if query == "check_tables"
+					check_tables(sock,t1,tablaAux)
+				end
+				if query == "add_tables"
+					t1 = add_tables(sock,t1,tablaAux)
+				end
 				if query == "debug_dict"
 					imprimirDebug(dicc)
 				end
@@ -180,11 +144,9 @@ Task1 = @async begin
 				ex = InterruptException()
 				Base.throwto(Task1,ex)
 				return false
-			 end
-
-			 
+			 end			 
            end
-         end
+        end
     end
 
  

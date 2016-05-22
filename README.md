@@ -1,13 +1,24 @@
 # NaiveBayes
-Tesis
+#Tesis
 
-Falta por agregar:
-- datasets ( Twits y reuters 21578 ) 
-- Coportamiento de los agentes como servidores/clientes (y la comunicacion)
-- ejemplos de como hacer funcionar el algoritmo
+Datasets
+---
+Se presentan los dataset en la carpeta docs (pa agentes y la version que considera los agentes como objetos)
+- twits.rar: conjunto de twits vinculados al problema de análisis de sentimiento con respecto a distintas multitiendas.
+- reuters.rar: Conjunto de textos recopilados por reuters. ese es un subconjunto del conjunto de reuters 21578 (http://www.daviddlewis.com/resources/testcollections/reuters21578/)
 
+Agentes
+---
+La carpeta agentes contiene la implementación de los agentes como servidores, utilizando los sockets tcp/ip:
+- Agente clasificador se conecta hacia agente critico y agente distribuidor
+- Agente Critico: Servidor que utiliza el puerto 2002 y cumple las funciones descritas (tanto t-test como diferencia de histogramas)
+- Agente Distribuidor: Servidor que utiliza el puero 2001 y cumple las funciones de distribuir tanto los textos al agente clasificador, como obtener la verdadera categoria para un texto.
 
 Funciones implementadas:
+---
+
+- benchmark.jl: implementa varias instancias del clasificador y critico con distintas configuraciones para realizar las pruebas de cual es la mejor configuración posible.
+
 - Main.jl
 ```
 	- function init(po,con,hand,dir,dir2,dir3,flagR,flagRe,dcc)
@@ -111,3 +122,13 @@ Funciones implementadas:
     removerNumeros(texto)
     removerStopWords(texto)
 ```
+
+No Aplica
+---
+Carpeta con iteraciones anteriores al codigo final.
+
+Instrucciones
+---
+Para hacer funcionar el codigo en la version de objetos, abrir benchmark.jl teniendo descomprimido twits en la carpeta docs. (para hacer funcionar reuters, hay que manipular las rutas predefinidas en los codigos, al igual que las metricas (en main.jl))
+
+para hacer funcionar el codigo con la version de agentes, abrir el agente distribuidor y critico, para luego abrir el agente clasificador, al igual que la version de objetos, hay que tener descomprimidos los datasets en la carpeta docs, para luego editar en el agente distribuidor, la ruta de los textos.

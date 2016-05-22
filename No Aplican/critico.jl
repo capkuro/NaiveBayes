@@ -18,10 +18,7 @@ function addDoc!(dicc::Dict,doc::String,class::String)
 	end
 end
 
-function certainty(args::String)
-	argumentos = split(args,",")
-	println(int(argumentos))
-end
+
 function check_doc(dicc::Dict,args::String)
 
 	argumentos = split(args,",") ## Estructura del mensaje: nombre_doc, class. ##Ambos string
@@ -95,9 +92,6 @@ Task1 = @async begin
 				class = get_doc_class(dicc,args)
 						## envio la clase
 						println(sock,class)
-				end
-				if query == "check_certainty"
-				check = certainty(args)
 				end
 				if query == "check_doc"
 					check = check_doc(dicc,args)
