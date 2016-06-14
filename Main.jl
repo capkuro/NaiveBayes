@@ -154,6 +154,9 @@
 			#println(clase*" "string(res))
 			push!(resultsAcc,tuple(clase,res[1]))
 		end
+		######
+		#Descomentar esto para generar la impresion de las clases
+		#println(resultsAcc)
 		return resultsAcc
 	end
 	

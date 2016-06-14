@@ -100,10 +100,10 @@ function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::In
 	### Fin variables=#
 	### dir
 	 direcion = "$flagHistogram $flagPools $flagTfIdf $lim $separacion $numRanking $splitVal $critVal"
-	 #mkdir("./benchmarkResult/"*direcion)
+	 mkdir("./benchmarkResult/"*direcion)
 	 totalDir = "./benchmarkResult/"*direcion*"/iteracion $iteracion/"
-	 #mkdir(totalDir)
-	# mkdir(totalDir*"hist/")
+	 mkdir(totalDir)
+	 mkdir(totalDir*"hist/")
 	###
 	#Valor tope
 	topVal = (3000/separacion) -1
@@ -123,7 +123,7 @@ function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::In
 		res = test(t1,t1.Test)
 	end
 	#Obtengo el histograma 
-	hist = histogram2(t1,1,t1.textos)
+	hist = histogram2(t1,1.0,false,length(t1.frequencias[1,:]))
 	#Lo guardo en un archuivo
 	fileHistogram(hist,totalDir,0)
 	res = create_file(res,0,totalDir*"iteracion 0.txt","Flag histogram: $flagHistogram Flag Pools: $flagPools Limite de textos:$lim separacion: $separacion numRanking: $numRanking splitVal: $splitVal val Critico: $critVal",t1)
@@ -157,9 +157,11 @@ function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::In
 			splitTrainTest(t2,splitVal)
 			println("Añadiendo tablas 1 y 2")
 			#sumo las tablas t1 y t2 (despues de haber separado la tabla 2, solo se añaden los archivos que quedan en t2.files y no los de t2.testing)
+			
 			t1 = addTablas(t1,t2)
 			#Genero un nuevo histograma para guardar
-			hist = histogram2(t1,1,t1.textos)
+			hist = histogram2(t1,1.0,false,length(t1.frequencias[1,:]))
+			
 			fileHistogram(hist,totalDir,i)
 			#updateDiccWithRanking!(t1,400,true)
 			#si FlagPools, entreno un clasificador nuevo y lo dejo en arreglo de clasificadores (Pools)

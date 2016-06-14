@@ -17,15 +17,15 @@ data = Array(Tuple,1)
 
 
 umbral = [0]
-flagHistogram =[true]
+flagHistogram =[false]
 flagPools = [false]
 flagTfIdf = [true]
-limites = [10000]
-separacion = [150]
+limites = [1000]
+separacion = [300]
 numRanking =[0]
 splitVal = [0.7]
 #splitVal = [0.8,0.7,0.5]
-critVal =[0.9]
+critVal =[0.25]
 #umbral = [500]
 for flH in flagHistogram
 	for flP in flagPools
