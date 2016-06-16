@@ -260,8 +260,8 @@ function tfidf(t::Tabla)
 	end
 	for j in 1:t.Diccionario.count
 		Idf[j] = idf(t.frequencias[:,j])
-		tfIdf[:,j] *= Idf[j]
 	end
+		tfIdf[:,j] *= Idf[j]
 	return tfIdf
 end
 

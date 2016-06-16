@@ -241,7 +241,7 @@
 	#Tiene 2 medidas de evaluacion, que so ntanto para el dataset de los twits, 
 	#como el dataset de reuters 21578 (http://www.daviddlewis.com/resources/testcollections/reuters21578/)
 	###
-	function create_file(results,tCritValues,fl::AbstractString,cfg::AbstractString,t::Tabla)
+	function create_file(results,tCritValues,iteracion,fl::AbstractString,cfg::AbstractString,t::Tabla)
 		i = 0
 		j = 0
 		#=
@@ -319,10 +319,10 @@
 		p2 = tp[2]/(tp[2] + fp[2]); r2 = tp[2]/(tp[2] + fn[2])
 		p3 = tp[3]/(tp[3] + fp[3]); r3 = tp[3]/(tp[3] + fn[3])
 		p4 = tp[4]/(tp[4] + fp[4]); r4 = tp[4]/(tp[4] + fn[4])
-		file = open(fl,"w")
+		file = open(fl,"a")
 		
-		println(file,cfg)
-		println(file,"Accuracy: "*string(i*100/j))
+		data = string(i*100/j)
+
 		
 		prec = (tp[1] + tp[2] + tp[3] + tp[4])/((tp[1] + tp[2] + tp[3] + tp[4])+(fp[1] + fp[2] + fp[3] + fp[4]))
 		recc = (tp[1] + tp[2] + tp[3] + tp[4])/((tp[1] + tp[2] + tp[3] + tp[4])+(fn[1] + fn[2] + fn[3] + fn[4]))
@@ -390,7 +390,7 @@
 		p1 = tp[1]/(tp[1] + fp[1]); r1 = tp[1]/(tp[1] + fn[1])
 		p2 = tp[2]/(tp[2] + fp[2]); r2 = tp[2]/(tp[2] + fn[2])
 		p3 = tp[3]/(tp[3] + fp[3]); r3 = tp[3]/(tp[3] + fn[3])
-		file = open(fl,"w")
+		file = open(fl,"a")
 		if isnan(p1)
 			p1 = 0
 		end
@@ -408,8 +408,7 @@
 		end
 		if isnan(r3)
 			r3 = 0
-		end
-		println(file,cfg)		
+		end	
 		prec = (tp[1] + tp[2] + tp[3])/((tp[1] + tp[2] + tp[3])+(fp[1] + fp[2] + fp[3]))
 		recc = (tp[1] + tp[2] + tp[3])/((tp[1] + tp[2] + tp[3])+(fn[1] + fn[2] + fn[3]))
 		
@@ -417,17 +416,9 @@
 		reccM = (r1+r2+r3)/3
 		f1M = (2*precM*reccM)/(precM+reccM)
 		f1 = (2*prec*recc)/(prec+recc)
-		
-		println(file,"Accuracy: "*string(i/j))
-		println(file,"macro prec: $precM ")
-		println(file,"recc: $reccM ")
-		println(file,"f1: $f1M")
-		println(file,"tCritValues: $tCritValues")
-		
-		lim1 = t.limSuperior
-		lim2 = t.limInferior
-		porcentaje = t.porcentaje
-		println(file,"Limite superior de los datos: $lim1 limite inferior:$lim2. Porcentaje del palabras que no estan distribuidas normal:$porcentaje")
+		data = string(i/j)
+		data = "$iteracion;"*data * ";$precM;$reccM;$f1M;$tCritValues"
+		println(file,data)
 		close(file)
 		return f1M
 	end

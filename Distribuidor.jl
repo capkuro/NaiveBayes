@@ -42,7 +42,7 @@ end
 # Funcion bench (benchmark) 
 # flagH: Flag histograma - Booleano -> Realizar comparación de histogramas para el re-entrenamiento.
 # flagP: Flag Pools - Booleano -> Utilizar varias pools 
-function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::Int,spVal::Float64,crVal::Float64,ite::Int)
+function bench(flagSp::Bool,flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::Int,spVal::Float64,crVal::Float64,ite::Int)
 	#p = Pool()
 	#pools = Pool[]
 	#Reinicio las pools entre iteración del benchmark, asi evitar que conocimiento previo entre iteracion con distinas configuraciones
@@ -50,6 +50,7 @@ function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::In
 	resetPools(p,pools)
 	resetPool()
 	#Inicializo las variables de configuracion para dicha instancia
+	global flagStop = flagSp
 	flagHistogram = flagH
 	flagPools = flagP
 	lim = li
@@ -99,11 +100,23 @@ function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::In
 
 	### Fin variables=#
 	### dir
-	 direcion = "$flagHistogram $flagPools $flagTfIdf $lim $separacion $numRanking $splitVal $critVal"
-	 mkdir("./benchmarkResult/"*direcion)
-	 totalDir = "./benchmarkResult/"*direcion*"/iteracion $iteracion/"
-	 mkdir(totalDir)
-	 mkdir(totalDir*"hist/")
+	if flagHistogram
+		direccion = "Histogram/"
+	else
+		direccion= "tstudent/"
+	end
+	direcion = direccion*"$flagSp $flagHistogram $flagPools $flagTfIdf $lim $separacion $numRanking $splitVal $critVal"
+	if !isdir("./benchmarkResult/"*direcion)
+		mkdir("./benchmarkResult/"*direcion)
+	end
+	 
+	totalDir = "./benchmarkResult/"*direcion*"/iteracion $iteracion/"
+	if !isdir(totalDir)
+		mkdir(totalDir)
+	end
+	if !isdir(totalDir*"hist/")
+		mkdir(totalDir*"hist/")
+	end
 	###
 	#Valor tope
 	topVal = (3000/separacion) -1
@@ -126,7 +139,7 @@ function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::In
 	hist = histogram2(t1,1.0,false,length(t1.frequencias[1,:]))
 	#Lo guardo en un archuivo
 	fileHistogram(hist,totalDir,0)
-	res = create_file(res,0,totalDir*"iteracion 0.txt","Flag histogram: $flagHistogram Flag Pools: $flagPools Limite de textos:$lim separacion: $separacion numRanking: $numRanking splitVal: $splitVal val Critico: $critVal",t1)
+	res = create_file(res,0,0,totalDir*"results.txt","Flag histogram: $flagHistogram Flag Pools: $flagPools Limite de textos:$lim separacion: $separacion numRanking: $numRanking splitVal: $splitVal val Critico: $critVal",t1)
 	for i in 1:topVal
 		#Inicializo la segunda tabla
 		t2 = initT(true,ta,separacion,lim,Arch)
@@ -148,7 +161,7 @@ function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::In
 			res2 = test(t2,t2.files)
 		end
 		#guardo los resultados
-		res2 = create_file(res2,crit,totalDir*"iteracion $i.txt","Flag histogram: $flagHistogram Flag Pools: $flagPools Limite de textos:$lim separacion: $separacion numRanking: $numRanking splitVal: $splitVal val Critico: $critVal",t2)
+		res2 = create_file(res2,crit,i,totalDir*"results.txt","Flag histogram: $flagHistogram Flag Pools: $flagPools Limite de textos:$lim separacion: $separacion numRanking: $numRanking splitVal: $splitVal val Critico: $critVal",t2)
 		
 		#Si el valor de la diferencia/valor t-student excede un valor umbral, se inicia el proceso de re-entrenamiento
 		if crit > critVal
@@ -190,7 +203,7 @@ function bench(flagH::Bool,flagP::Bool,flagTI::Bool,li::Int,sep::Int,numRank::In
 			end
 			
 			#Creo el archivo de output para los resultados del clasificador
-			res3 = create_file(res3,crit,totalDir*"iteracion $i retrained.txt","Flag histogram: $flagHistogram Flag Pools: $flagPools Limite de textos:$lim separacion: $separacion numRanking: $numRanking splitVal: $splitVal val Critico: $critVal",t2)
+			res3 = create_file(res3,crit,i,totalDir*"retrained.txt","Flag histogram: $flagHistogram Flag Pools: $flagPools Limite de textos:$lim separacion: $separacion numRanking: $numRanking splitVal: $splitVal val Critico: $critVal",t2)
 			
 			println("iteracion:$i valor de tTest: $crit, re-entrenar f1:$res2 , f1 nuevo: $res3 ")
 			
